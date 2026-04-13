@@ -153,8 +153,13 @@ func (b *openclawBackend) processOutput(r io.Reader, ch chan<- Message) openclaw
 		return openclawEventResult{status: "failed", errMsg: fmt.Sprintf("read stderr: %v", err)}
 	}
 
+	// OpenClaw may output pretty-printed (multi-line) JSON. No single line
+	// would parse, so try parsing the accumulated output as a whole.
 	trimmed := strings.TrimSpace(strings.Join(rawLines, "\n"))
 	if trimmed != "" {
+		if result, ok := tryParseOpenclawResult(trimmed); ok {
+			return b.buildOpenclawEventResult(result, ch)
+		}
 		return openclawEventResult{status: "completed", output: trimmed}
 	}
 	return openclawEventResult{status: "failed", errMsg: "openclaw returned no parseable output"}
